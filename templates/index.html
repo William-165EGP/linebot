@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Line Bot 聊天歷史</title>
+    <style>
+        /* 重置與基本設定 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif;
+        }
+        
+        body {
+            background-color: #f7f7f7;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        
+        /* 容器 */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        /* 頁頭 */
+        header {
+            background: #00c300; /* Line 綠色 */
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        /* 搜尋區域 */
+        .search-area {
+            background: #f0f0f0;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .search-form {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        input[type="text"] {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            flex-grow: 1;
+            min-width: 200px;
+        }
+        
+        button {
+            padding: 10px 15px;
+            background: #00c300;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #009900;
+        }
+        
+        .clear-filter {
+            background: #888;
+        }
+        
+        .clear-filter:hover {
+            background: #666;
+        }
+        
+        /* 訊息列表 */
+        .messages-container {
+            padding: 20px;
+        }
+        
+        .message-item {
+            margin-bottom: 30px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 20px;
+            position: relative;
+        }
+        
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .user-info {
+            font-weight: bold;
+            color: #555;
+        }
+        
+        .timestamp {
+            color: #888;
+            font-size: 14px;
+        }
+        
+        .message-content {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .user-message, .bot-response {
+            padding: 15px;
+            border-radius: 10px;
+            max-width: 80%;
+        }
+        
+        .user-message {
+            background: #e6f7ff;
+            align-self: flex-end;
+            border-top-right-radius: 0;
+        }
+        
+        .bot-response {
+            background: #f0f0f0;
+            align-self: flex-start;
+            border-top-left-radius: 0;
+        }
+        
+        .message-actions {
+            position: absolute;
+            top: 0;
+            right: 0;
+        }
+        
+        .delete-btn {
+            background: #ff3b30;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 5px 10px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        
+        .delete-btn:hover {
+            background: #d9302a;
+        }
+        
+        /* 分頁控制 */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+            gap: 10px;
+        }
+        
+        .pagination button {
+            padding: 5px 10px;
+        }
+        
+        /* 加載中動畫 */
+        .loading {
+            text-align: center;
+            padding: 20px;
+            font-style: italic;
+            color: #888;
+        }
+        
+        /* 沒有記錄 */
+        .no-records {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+            font-size: 18px;
+        }
+        
+        /* 確認對話框 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        
+        .modal-content {
+            background-color: #fff;
+            margin: 15% auto;
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 500px;
+            text-align: center;
+        }
+        
+        .modal-buttons {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .confirm-delete {
+            background: #ff3b30;
+        }
+        
+        .confirm-delete:hover {
+            background: #d9302a;
+        }
+        
+        .cancel-delete {
+            background: #888;
+        }
+        
+        .cancel-delete:hover {
+            background: #666;
+        }
+        
+        /* 響應式設計 */
+        @media (max-width: 768px) {
+            .user-message, .bot-response {
+                max-width: 90%;
+            }
+            
+            .search-area {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+            }
+            
+            .search-form {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .message-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Line Bot 聊天歷史</h1>
+            <p>檢視和管理您的聊天記錄</p>
+        </header>
+        
+        <div class="search-area">
+            <div class="search-form">
+                <input type="text" id="user-id-filter" placeholder="輸入用戶ID進行篩選">
+                <button id="search-btn">搜尋</button>
+                <button class="clear-filter" id="clear-filter">清除篩選</button>
+            </div>
+            <div>
+                <button id="refresh-btn">重新載入</button>
+            </div>
+        </div>
+        
+        <div class="messages-container" id="messages-container">
+            <div class="loading" id="loading">載入中，請稍候...</div>
+        </div>
+        
+        <div class="pagination" id="pagination">
+            <!-- 分頁控制項目會動態生成 -->
+        </div>
+    </div>
+    
+    <!-- 確認刪除對話框 -->
+    <div class="modal" id="delete-modal">
+        <div class="modal-content">
+            <p>您確定要刪除這條記錄嗎？此操作無法撤銷。</p>
+            <div class="modal-buttons">
+                <button class="confirm-delete" id="confirm-delete">確認刪除</button>
+                <button class="cancel-delete" id="cancel-delete">取消</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 全局變數
+        const API_BASE_URL = 'https://line.huan.ng/api'; // 修改為您的API伺服器地址
+        let currentUserId = '';
+        let currentLimit = 50;
+        let messageToDelete = null;
+        
+        // DOM 元素
+        const messagesContainer = document.getElementById('messages-container');
+        const loadingElement = document.getElementById('loading');
+        const userIdFilter = document.getElementById('user-id-filter');
+        const searchBtn = document.getElementById('search-btn');
+        const clearFilterBtn = document.getElementById('clear-filter');
+        const refreshBtn = document.getElementById('refresh-btn');
+        const deleteModal = document.getElementById('delete-modal');
+        const confirmDeleteBtn = document.getElementById('confirm-delete');
+        const cancelDeleteBtn = document.getElementById('cancel-delete');
+        
+        // 事件監聽器
+        document.addEventListener('DOMContentLoaded', () => {
+            loadChatHistory();
+            
+            searchBtn.addEventListener('click', () => {
+                currentUserId = userIdFilter.value.trim();
+                loadChatHistory();
+            });
+            
+            clearFilterBtn.addEventListener('click', () => {
+                userIdFilter.value = '';
+                currentUserId = '';
+                loadChatHistory();
+            });
+            
+            refreshBtn.addEventListener('click', loadChatHistory);
+            
+            confirmDeleteBtn.addEventListener('click', confirmDelete);
+            cancelDeleteBtn.addEventListener('click', () => {
+                deleteModal.style.display = 'none';
+                messageToDelete = null;
+            });
+            
+            // 按Enter鍵觸發搜尋
+            userIdFilter.addEventListener('keypress', (event) => {
+                if (event.key === 'Enter') {
+                    currentUserId = userIdFilter.value.trim();
+                    loadChatHistory();
+                }
+            });
+        });
+        
+        // 載入聊天歷史
+        async function loadChatHistory() {
+            showLoading();
+            
+            try {
+                let url = `${API_BASE_URL}/chat-history?limit=${currentLimit}`;
+                if (currentUserId) {
+                    url += `&user_id=${encodeURIComponent(currentUserId)}`;
+                }
+                
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error(`API錯誤: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                renderMessages(data);
+                
+            } catch (error) {
+                console.error('載入聊天歷史時發生錯誤:', error);
+                messagesContainer.innerHTML = `
+                    <div class="no-records">
+                        載入失敗: ${error.message}
+                    </div>
+                `;
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // 渲染訊息
+        function renderMessages(messages) {
+            if (messages.length === 0) {
+                messagesContainer.innerHTML = `
+                    <div class="no-records">
+                        沒有找到聊天記錄
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            
+            messages.forEach(message => {
+                const timestamp = formatTimestamp(message.timestamp);
+                
+                html += `
+                    <div class="message-item" data-id="${message.id}">
+                        <div class="message-header">
+                            <div class="user-info">用戶ID: ${message.user_id}</div>
+                            <div class="timestamp">${timestamp}</div>
+                        </div>
+                        <div class="message-content">
+                            <div class="user-message">${escapeHtml(message.user_message)}</div>
+                            <div class="bot-response">${escapeHtml(message.bot_response)}</div>
+                        </div>
+                        <div class="message-actions">
+                            <button class="delete-btn" onclick="showDeleteConfirmation(${message.id})">刪除</button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            messagesContainer.innerHTML = html;
+        }
+        
+        // 顯示刪除確認對話框
+        function showDeleteConfirmation(messageId) {
+            messageToDelete = messageId;
+            deleteModal.style.display = 'block';
+        }
+        
+        // 確認刪除
+        async function confirmDelete() {
+            if (!messageToDelete) return;
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/chat-history?message_id=${messageToDelete}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API錯誤: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // 刪除成功，刷新列表
+                    deleteModal.style.display = 'none';
+                    messageToDelete = null;
+                    loadChatHistory();
+                } else {
+                    throw new Error('刪除失敗');
+                }
+                
+            } catch (error) {
+                console.error('刪除時發生錯誤:', error);
+                alert(`刪除失敗: ${error.message}`);
+            }
+        }
+        
+        // 格式化時間戳記
+        function formatTimestamp(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleString('zh-TW', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            });
+        }
+        
+        // 顯示載入中
+        function showLoading() {
+            loadingElement.style.display = 'block';
+            messagesContainer.innerHTML = '';
+        }
+        
+        // 隱藏載入中
+        function hideLoading() {
+            loadingElement.style.display = 'none';
+        }
+        
+        // HTML 轉義，防止 XSS
+        function escapeHtml(html) {
+            const div = document.createElement('div');
+            div.textContent = html;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
